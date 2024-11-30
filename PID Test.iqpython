@@ -1,1 +1,88 @@
-{"mode":"Text","hardwareTarget":"brain","textContent":"#region VEXcode Generated Robot Configuration\nfrom vex import *\nimport urandom\n\n# Brain should be defined by default\nbrain=Brain()\n\n# Robot configuration code\nbrain_inertial = Inertial()\nleft_motor = Motor(Ports.PORT9, False)\nright_motor = Motor(Ports.PORT3, True)\n\n\n\n# generating and setting random seed\ndef initializeRandomSeed():\n    wait(100, MSEC)\n    xaxis = brain_inertial.acceleration(XAXIS) * 1000\n    yaxis = brain_inertial.acceleration(YAXIS) * 1000\n    zaxis = brain_inertial.acceleration(ZAXIS) * 1000\n    systemTime = brain.timer.system() * 100\n    urandom.seed(int(xaxis + yaxis + zaxis + systemTime)) \n    \n# Initialize random seed \ninitializeRandomSeed()\n\n#endregion VEXcode Generated Robot Configuration\n\n# ------------------------------------------\n# \n# \tProject:      PID Test Control\n# \tAuthor:       Louis Cottenier\n# \tCreated:      11/9/2024\n# \tDescription:  Testing PID control\n# \n# ------------------------------------------\n\n# Library imports\nfrom vex import *\n\n# Begin project code\nstart_intake = Event()\nstop_intake = Event()\ncatapult_load = Event()\ncatapult_launch = Event()\nerror = 0\noutput = 0\nerror_total = 0\nlast_error = 0\nderivative = 0\ngear_ratio = 2 / 1\n\ndef move(left_speed, right_speed):\n    left_motor.set_velocity(left_speed, PERCENT)\n    right_motor.set_velocity(right_speed, PERCENT)\n    left_motor.spin(FORWARD)\n    right_motor.spin(FORWARD)\n#(gear_ratio * 200)\n\ndef drivestrait_PID(target_distance:int, speed:int, kp:float, kd:float, ki:float, target_heading:int):\n    left_motor.set_stopping(BRAKE)\n    right_motor.set_stopping(BRAKE)\n    left_motor.set_position(0, DEGREES)\n    right_motor.set_position(0, DEGREES)\n    error_total = brain_inertial.rotation() - target_heading\n    while math.fabs(left_motor.position(DEGREES)) + math.fabs(right_motor.position(DEGREES)) / 2 < target_distance:\n        error = brain_inertial.rotation() - target_heading\n        last_error = error\n        wait(0.2, SECONDS)\n        error = brain_inertial.rotation() - target_heading\n        derivative = error - last_error\n        # + 0.5\n        output = error * kp + (derivative * kd * error_total * ki)\n        move(speed-output, speed + output)\n        error_total = error_total + error\n        wait(20, MSEC)\n    left_motor.stop()\n    right_motor.stop()\n\n\n\ndef PID_turn(target_rotation:int, kp:float, kd, ki:float, max_error:int):\n    # Make sure to set the motor stopping\n    minSpeed = 7\n    direction = 1\n    speed = minSpeed\n    if (target_rotation < brain_inertial.rotation()):\n        speed = minSpeed * -1\n        direction = -1\n\n    error_total = brain_inertial.rotation() - target_rotation\n    last_error = error_total\n    # brain.timer.reset()\n    while (abs(target_rotation - brain_inertial.rotation()) > max_error):\n        error = target_rotation - brain_inertial.rotation()\n        derivative = error - last_error\n        integral = ki * error_total\n        if (abs(error * kp) > minSpeed):\n            speed = (error * kp) + (derivative * kd) + (ki * integral)\n        if (abs(speed) < minSpeed):\n            speed = minSpeed * direction\n        # if (detectMotorStall(left_motor, 0.5, 2)):\n        #     speed = speed * 2\n        move(speed, speed * -1)\n        error_total = error_total + error\n        wait(10, MSEC)\n        last_error = error\n    left_motor.stop()\n    right_motor.stop()\n    wait(20, MSEC)\n    if (abs(target_rotation - brain_inertial.rotation()) > max_error * 2):\n        brain.play_sound(SoundType.TADA)\n        PID_turn(target_rotation, kp, kd, ki, max_error)\n\n\n\nPID_turn(90, 00, 0, 0, 360)","textLanguage":"python","robotConfig":[{"port":[9],"name":"left_motor","customName":true,"deviceType":"Motor","deviceClass":"motor","setting":{"reversed":"false","fwd":"forward","rev":"reverse"},"triportSourcePort":22},{"port":[3],"name":"right_motor","customName":true,"deviceType":"Motor","deviceClass":"motor","setting":{"reversed":"true","fwd":"forward","rev":"reverse"},"triportSourcePort":22}],"slot":3,"platform":"IQ","sdkVersion":"20230818.11.00.00","appVersion":"4.0.5","fileFormat":"2.0.0","targetBrainGen":"Second","v5SoundsEnabled":false}
+#region VEXcode Generated Robot Configuration
+from vex import *
+import urandom
+
+# Brain should be defined by default
+brain=Brain()
+
+# Robot configuration code
+brain_inertial = Inertial()
+left_motor = Motor(Ports.PORT9, False)
+right_motor = Motor(Ports.PORT3, True)
+
+
+
+# generating and setting random seed
+def initializeRandomSeed():
+    wait(100, MSEC)
+    xaxis = brain_inertial.acceleration(XAXIS) * 1000
+    yaxis = brain_inertial.acceleration(YAXIS) * 1000
+    zaxis = brain_inertial.acceleration(ZAXIS) * 1000
+    systemTime = brain.timer.system() * 100
+    urandom.seed(int(xaxis + yaxis + zaxis + systemTime)) 
+    
+# Initialize random seed 
+initializeRandomSeed()
+
+#endregion VEXcode Generated Robot Configuration
+
+# ------------------------------------------
+# 
+# 	Project:      PID Test Control
+# 	Author:       Louis Cottenier
+# 	Created:      11/9/2024
+# 	Description:  Testing PID control
+# 
+# ------------------------------------------
+
+# Library imports
+from vex import *
+
+# Begin project code
+start_intake = Event()
+stop_intake = Event()
+catapult_load = Event()
+catapult_launch = Event()
+error = 0
+output = 0
+error_total = 0
+last_error = 0
+derivative = 0
+gear_ratio = 2 / 1
+
+
+def move(left_speed, right_speed):
+    left_motor.set_velocity(left_speed, PERCENT)
+    right_motor.set_velocity(right_speed, PERCENT)
+    left_motor.spin(FORWARD)
+    right_motor.spin(FORWARD)
+
+
+#(gear_ratio * 200)
+#target distance is in MM
+#speed is NOT velocity, speed affects velocity
+#stuff is not workign and i am tired and broken :(
+def drivestrait_PID(target_distance:int, speed:int, kp:float, kd:float, ki:float, target_heading:int):
+    brain_inertial.set_rotation(0, DEGREES)
+    left_motor.set_stopping(BRAKE)
+    right_motor.set_stopping(BRAKE)
+    left_motor.set_position(0, DEGREES)
+    right_motor.set_position(0, DEGREES)
+    error_total = brain_inertial.rotation() - target_heading
+    while math.fabs(left_motor.position(DEGREES)) + math.fabs(right_motor.position(DEGREES)) / 2 < target_distance:
+        error = brain_inertial.rotation() - target_heading
+        last_error = error
+        wait(20, MSEC)
+        error = brain_inertial.rotation() - target_heading
+        derivative = error - last_error
+        # + 0.5
+        output = error * kp + derivative * kd + (error_total * ki)
+        move(speed - output, speed + output)
+        error_total = error_total + error
+    left_motor.stop()
+    right_motor.stop()
+
+
+
+drivestrait_PID(1800, 75, 1, 0.1, 0.1, 0)
+
