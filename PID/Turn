@@ -1,0 +1,85 @@
+def turn_PID(target_distance:int, speed:float, kp:float, ki:float, kd:float, target_heading:int):
+    brain_inertial.set_rotation(0, DEGREES)
+    left_motor.set_stopping(BRAKE)
+    right_motor.set_stopping(BRAKE)
+    left_motor.set_position(0, DEGREES)
+    right_motor.set_position(0, DEGREES)
+    error_total = target_heading - brain_inertial.rotation()
+    print("error_total", error_total)
+    touchled_2.set_color(Color.RED)
+    error = target_heading - brain_inertial.rotation()
+    while math.fabs(error) > 0.75:
+        touchled_2.set_color(Color.GREEN)
+        abs_error = math.fabs(error)
+        print("abs_error", abs_error)
+        last_error = abs_error
+        print("last_error", last_error)
+        wait(10, MSEC)
+        touchled_2.set_color(Color.BLUE)
+        error = target_heading - brain_inertial.rotation()
+        print("error", error)
+        abs_error = math.fabs(error)
+        print("abs_error", abs_error)
+        derivative = abs_error - last_error
+        print("derivative", derivative)
+        # + 0.5
+        touchled_2.set_color(Color.YELLOW)
+        output = abs_error * kp + derivative * kd + (error_total * ki)
+        print("output", output)
+        if (output < 5):
+            output = 5
+        #move(speed - output, speed + output)
+        if error > 0:  
+            print("Positive")
+            touchled_2.set_color(Color.GREEN)  
+            left_motor.set_velocity(output)
+            right_motor.set_velocity(output)
+            left_motor.spin(FORWARD)
+            right_motor.spin(REVERSE)
+
+        else:
+
+            print("Negative")  
+            touchled_2.set_color(Color.RED)
+            left_motor.set_velocity(output)
+            right_motor.set_velocity(output)
+            left_motor.spin(REVERSE)
+            right_motor.spin(FORWARD)
+
+        error = target_heading - brain_inertial.rotation()
+        abs_error = math.fabs(error)
+        error_total = error_total + abs_error
+    print("last error: " + str(error))
+    left_motor.stop()
+    right_motor.stop()
+
+
+
+
+#drivestrait_PID(1000, 62.5, 0.342, 0.02549, 0, 0)
+#drivestrait_PID(1000, 62.5, 0.456, 0.05664596, 0.09177, 0)
+
+#drivestrait_PID(1500, 62.5, 0.456, 0.05664596, 0.9177, 0)
+
+
+#drivestrait_PID(1500, 62.5, 0.456, 0.05664596, 0.45885, 0)
+#drivestrait_PID(1000, 62.5, 0.456, 0.05664596, 0.45885, 0)
+#Intake.spin_for(FORWARD, 900, DEGREES)
+
+
+
+#drivestrait_PID(5, 62.5, 0.456, 0.05664596, 0.45885, -90)
+
+time1 = time.time()
+turn_PID(0, 100, 0.75, 0.0001, 0.0001, 90)
+time2 = time.time()
+print("time: " + str(time2 -time1))
+
+1000/62.5
+16
+1.61
+31
+
+39.371
+
+222
