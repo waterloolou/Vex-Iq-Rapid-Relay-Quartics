@@ -1,0 +1,134 @@
+#region VEXcode Generated Robot Configuration
+from vex import *
+import urandom
+
+# Brain should be defined by default
+brain=Brain()
+
+# Robot configuration code
+brain_inertial = Inertial()
+left_motor = Motor(Ports.PORT9, False)
+right_motor = Motor(Ports.PORT3, True)
+intake_motor_a = Motor(Ports.PORT7, False)
+intake_motor_b = Motor(Ports.PORT1, True)
+intake = MotorGroup(intake_motor_a, intake_motor_b)
+catapult_motor_a = Motor(Ports.PORT12, False)
+catapult_motor_b = Motor(Ports.PORT6, True)
+catapult = MotorGroup(catapult_motor_a, catapult_motor_b)
+touchled_2 = Touchled(Ports.PORT2)
+Distance8 = Distance(Ports.PORT8)
+
+
+
+# generating and setting random seed
+def initializeRandomSeed():
+    wait(100, MSEC)
+    xaxis = brain_inertial.acceleration(XAXIS) * 1000
+    yaxis = brain_inertial.acceleration(YAXIS) * 1000
+    zaxis = brain_inertial.acceleration(ZAXIS) * 1000
+    systemTime = brain.timer.system() * 100
+    urandom.seed(int(xaxis + yaxis + zaxis + systemTime)) 
+
+# Initialize random seed 
+initializeRandomSeed()
+
+#endregion VEXcode Generated Robot Configuration
+
+# ------------------------------------------
+# 
+# 	Project:      PID Test Control
+# 	Author:       Louis Cottenier
+# 	Created:      11/9/2024
+# 	Description:  Testing PID control
+# 
+# ------------------------------------------
+
+# Library imports
+from vex import *
+
+# Begin project code
+start_intake = Event()
+stop_intake = Event()
+catapult_load = Event()
+catapult_launch = Event()
+
+def mypath():
+    print("heading start: ", brain_inertial.rotation())
+    drivestraitbackward_PID(0, -62.5, 0.4, 0.001, 0.001, 0) #0.456, 0.05664596, 0.45885, 0)
+    wait(1,SECONDS)
+    catapult_launch_degrees(100)
+    onevent_catapult_load_0()
+    #wait(1,SECONDS)
+    x=1
+    while x < 5:        
+        wait(1,SECONDS)
+        drivestraitforward_PID(635, 62.5, 0.45, 0.05, 0.05, 0)
+        onevent_start_intake_0()
+        wait(1,SECONDS)
+        drivestraitbackward_PID(0, -62.5, 0.4, 0.001, 0.001, 0) #0.456, 0.05664596, 0.45885, 0)
+        onevent_stop_intake_0()
+        wait(1,SECONDS)        
+        catapult_load_degree(300)
+        wait(1,SECONDS)
+        onevent_catapult_launch_0()
+        x += 1
+    drivestraitforward_PID(635, 62.5, 0.45, 0.05, 0.05, 0)
+    print("heading end: ", brain_inertial.rotation())
+
+
+
+def catapult_launch_degrees(degrees):
+    #  High goal
+    catapult.spin_for(REVERSE, degrees, DEGREES)
+
+def catapult_load_degree(degree):
+    # Low Goal
+    catapult.spin_for(FORWARD, degree, DEGREES)
+
+def onevent_catapult_launch_0():
+    # Loading for high goal
+    catapult_load_degree(600)
+
+def onevent_start_intake_0():
+    # Multithread for starting intake
+    intake.spin(FORWARD)
+
+def onevent_catapult_load_0():
+    # Loading for Low goal
+    catapult_load_degree(900)
+
+def onevent_stop_intake_0():
+    # Multithread for stopping intake
+    intake.stop()
+
+def when_started1():
+    # Calibrating Intertial, sets the heading allowing for accurate movment
+    brain_inertial.calibrate()
+    while brain_inertial.is_calibrating():
+        sleep(50)
+    # Setting Velocity and drivetrain brakes
+    catapult.set_velocity(100, PERCENT)
+    intake.set_velocity(100, PERCENT)
+    left_motor.set_stopping(BRAKE)
+    right_motor.set_stopping(BRAKE)
+    left_motor.set_velocity(25, PERCENT)
+    right_motor.set_velocity(25, PERCENT)
+    # Calling the path function
+    start_time = brain.timer.time(MSEC)    
+    mypath()
+    end_time = brain.timer.time(MSEC)
+    print("Total path time:", end_time - start_time)
+    wait(5, SECONDS)
+
+    # Ends project
+    brain.program_stop()
+
+# system event handlers
+catapult_launch(onevent_catapult_launch_0)
+start_intake(onevent_start_intake_0)
+catapult_load(onevent_catapult_load_0)
+stop_intake(onevent_stop_intake_0)
+# add 15ms delay to make sure events are registered correctly.
+wait(15, MSEC)
+
+when_started1()
