@@ -1,0 +1,333 @@
+#region VEXcode Generated Robot Configuration
+from vex import *
+import urandom
+
+# Brain should be defined by default
+brain=Brain()
+
+# Robot configuration code
+brain_inertial = Inertial()
+right_motor = Motor(Ports.PORT3, True)
+left_motor = Motor(Ports.PORT9, False)
+intake_motor_a = Motor(Ports.PORT7, True)
+intake_motor_b = Motor(Ports.PORT1, False)
+intake = MotorGroup(intake_motor_a, intake_motor_b)
+Distance8 = Distance(Ports.PORT8)
+catapult_motor_a = Motor(Ports.PORT12, True)
+catapult_motor_b = Motor(Ports.PORT6, False)
+catapult = MotorGroup(catapult_motor_a, catapult_motor_b)
+touchled_2 = Touchled(Ports.PORT2)
+
+
+
+# generating and setting random seed
+def initializeRandomSeed():
+    wait(100, MSEC)
+    xaxis = brain_inertial.acceleration(XAXIS) * 1000
+    yaxis = brain_inertial.acceleration(YAXIS) * 1000
+    zaxis = brain_inertial.acceleration(ZAXIS) * 1000
+    systemTime = brain.timer.system() * 100
+    urandom.seed(int(xaxis + yaxis + zaxis + systemTime)) 
+    
+# Initialize random seed 
+initializeRandomSeed()
+
+#endregion VEXcode Generated Robot Configuration
+
+# Begin project code
+
+# register for intake and catapult events
+start_intake = Event()
+stop_intake = Event()
+catapult_load = Event()
+catapult_launch = Event()
+
+# code for making left and right motors as drive train so they move together
+def move(left_speed, right_speed):
+   left_motor.set_velocity(left_speed, PERCENT)
+   right_motor.set_velocity(right_speed, PERCENT)
+   left_motor.spin(FORWARD)
+   right_motor.spin(FORWARD)
+
+
+def drivestraitforward_PID(target_distance:int, speed:int, kp:float, ki:float, kd:float, target_heading:int):   
+   #brain_inertial.set_rotation(0, DEGREES)
+   left_motor.set_position(0, DEGREES)
+   right_motor.set_position(0, DEGREES)
+
+   #print("Starting heading forward: ", brain_inertial.rotation())
+
+   # based on the current heading find the change in heading needed to achieve target heading
+   startdistance = Distance8.object_distance(MM)   
+   distance_moved = Distance8.object_distance(MM) - startdistance
+
+   # error_total is used for K(I)
+   error_total = brain_inertial.rotation() - target_heading
+   #print("Start Error total: ", error_total)
+    
+   while (math.fabs(left_motor.position(DEGREES)) + math.fabs(right_motor.position(DEGREES))) / 2 < target_distance and distance_moved < target_distance:       
+       distance_moved = Distance8.object_distance(MM) - startdistance
+       #print("Distance moved forward:", distance_moved)
+       #print("Distance moved forward:", distance_moved)
+       error = brain_inertial.rotation() - target_heading
+       last_error = error
+       wait(1, MSEC)
+       error = brain_inertial.rotation() - target_heading       
+       # error_total is used for K(D)
+       derivative = error - last_error
+
+       # caculate velocity offset based on k(P), K(I) and K(D)
+       output = error * kp + derivative * kd + (error_total * ki)
+       #print("Output Forward: ", output)
+
+       move(speed - output, speed + output)
+       error_total = error_total + error
+
+   left_motor.stop()
+   right_motor.stop()
+   #print("Ending heading forward: ", brain_inertial.rotation())
+   #print("End Error total: ", error_total)
+   #print("Distance moved: ", distance_moved)   
+
+def drivestraitbackward_PID(target_distance:int, speed:int, kp:float, ki:float, kd:float, target_heading:int):   
+   #brain_inertial.set_rotation(0, DEGREES)
+   left_motor.set_position(0, DEGREES)
+   right_motor.set_position(0, DEGREES)
+   #print("Starting heading backward: ", brain_inertial.rotation())
+
+   # based on the current heading find the change in heading needed to achieve target heading
+   startdistance = Distance8.object_distance(MM)   
+   distance_moved = math.fabs(Distance8.object_distance(MM) - startdistance)
+
+   # error_total is used for K(I)
+   error_total = brain_inertial.rotation() - target_heading
+   #print("Start Error total: ", error_total)
+   startdistance = Distance8.object_distance(MM)   
+   distance_moved =  startdistance - Distance8.object_distance(MM)
+   print("Start distance for backward ",startdistance)
+
+   while (Distance8.object_distance(MM) > 40 and (math.fabs(left_motor.position(DEGREES)) + math.fabs(right_motor.position(DEGREES))) / 2 < target_distance): #or distance_moved < target_distance:
+       distance_moved = startdistance - Distance8.object_distance(MM)
+       print("Distance moved backward: ", distance_moved)
+    
+       #print("Distance from goal: ", Distance8.object_distance(MM))
+
+       error = brain_inertial.rotation() - target_heading
+       last_error = error
+       wait(1, MSEC)
+       error = brain_inertial.rotation() - target_heading
+       # error_total is used for K(D)
+       derivative = error - last_error
+
+       # caculate velocity offset based on k(P), K(I) and K(D)
+       output = error * kp + derivative * kd + (error_total * ki)
+
+       #print("Output Backwards: ", output)
+       move(speed - output, speed + output)
+       error_total = error_total + error
+
+   left_motor.stop()
+   right_motor.stop()
+   #print("Ending heading backward: ", brain_inertial.rotation())
+   #print("End Error total: ", error_total)
+   #print("Distance moved: ", distance_moved)   
+
+def moveandscore():
+   kp_backward = 0.4
+   kp_forward = 0.45
+   ki_backward = 0.001
+   ki_forward = 0.001
+   kd_backward = 0.001
+   kd_forward = 0.001
+   #print("heading start: ", brain_inertial.rotation())
+   drivestraitbackward_PID(1000, -62.5, kp_backward, ki_backward, kd_backward, -90) #0.456, 0.05664596, 0.45885, 0)
+   wait(1,SECONDS)
+   #catapult_launch_degrees(100)
+   #onevent_catapult_load_0()
+   #wait(1,SECONDS)
+   x=1
+   while x < 4:        
+       wait(1,SECONDS)
+       drivestraitforward_PID(635, 62.5, kp_forward, ki_forward, kd_forward, -90)
+       #onevent_start_intake_0()
+       wait(1,SECONDS)
+       drivestraitbackward_PID(635, -62.5, kp_backward, ki_backward, kd_backward, -90) #0.456, 0.05664596, 0.45885, 0)
+       #onevent_stop_intake_0()
+       wait(1,SECONDS)        
+       #catapult_load_degree(300)
+       wait(1,SECONDS)
+       #onevent_catapult_launch_0()
+       x += 1
+   drivestraitforward_PID(635, 62.5, kp_forward, ki_forward, kd_forward, -90)
+   #print("heading end: ", brain_inertial.rotation())
+
+   
+
+def catapult_launch_degrees(degrees):
+   #  High goal
+   catapult.spin_for(REVERSE, degrees, DEGREES)
+
+def catapult_load_degree(degree):
+   # Low Goal
+   catapult.spin_for(FORWARD, degree, DEGREES)
+
+def onevent_catapult_launch_0():
+   # Loading for high goal
+   catapult_load_degree(600)
+
+def onevent_start_intake_0():
+   # Multithread for starting intake
+   intake.spin(FORWARD)
+
+def onevent_catapult_load_0():
+   # Loading for Low goal
+   catapult_load_degree(900)
+
+def onevent_stop_intake_0():
+   # Multithread for stopping intake
+   intake.stop()
+
+# system event handlers
+catapult_launch(onevent_catapult_launch_0)
+start_intake(onevent_start_intake_0)
+catapult_load(onevent_catapult_load_0)
+stop_intake(onevent_stop_intake_0)
+# add 15ms delay to make sure events are registered correctly.
+wait(15, MSEC)
+\
+'''
+We take in the parameters of speed for how fast we want to go.
+kp, ki, and kd are values that affect the output (how it turns)
+The target heading tells us where we want to go.
+kp is the rate of change that the robot moves.
+ki takes the past error adds it up, and is used to change the rate of change
+kd uses that past to predicte future outcomes, and changes the rate of change
+We  use print statements and led for debuging all throughout the code. This helps us tune the code to work.
+'''
+def turn_PID(speed:float, kp:float, ki:float, kd:float, target_heading:int):
+   # Setting the rotation and position to 0 as a starting point
+   # Setting the motors to brake so that they don't drift. 
+   #brain_inertial.set_rotation(0, DEGREES)   
+   left_motor.set_position(0, DEGREES)
+   right_motor.set_position(0, DEGREES)
+   #print("Starting heading turn: ", brain_inertial.rotation())
+
+   # Calculating error total for ki
+   error_total = target_heading - brain_inertial.rotation()
+   # Print statements and led for debuging
+  # print("error_total", error_total)
+   touchled_2.set_color(Color.RED)
+
+   # Setting the error for a starting value.
+   error = target_heading - brain_inertial.rotation()
+   
+   # Loop that moves robot until there is no error
+   while math.fabs(error) > 0.75:
+       touchled_2.set_color(Color.GREEN)
+       # abs_error and last_error are used for calculating derivitive
+       last_error = math.fabs(error)
+       #print("last_error", last_error)
+
+       # Wating 10 milliseconds to wait for a new reading of error
+       wait(10, MSEC)
+       touchled_2.set_color(Color.BLUE)
+
+       # derivative gets calculated using the last_error and the abs_error. kd will be multiplied by the derivative.
+       error = target_heading - brain_inertial.rotation()
+       #print("error", error)
+       abs_error = math.fabs(error)
+       #print("abs_error", abs_error)
+
+       derivative = abs_error - last_error
+       #print("derivative", derivative)
+
+       touchled_2.set_color(Color.YELLOW)
+       # Output being calculated. Output is used to calculate which direction we need to go to make the turn at any given moment.
+       output = abs_error * kp + derivative * kd + (error_total * ki)
+       #print("output", output)
+
+       # This makes sure that the output never gets to slow, and that the robot will keep moving when the output is to little.
+       if (output < 5):
+           output = 5
+       
+       # If the error is greater than 0, then we turn the robot clockwise.
+       if error > 0:  
+           #print("Positive")
+           touchled_2.set_color(Color.GREEN)  
+           left_motor.set_velocity(output)
+           right_motor.set_velocity(output)
+           left_motor.spin(FORWARD)
+           right_motor.spin(REVERSE)
+       # If the error is less than 0, then we turn the robot counterclockwise
+       else:
+           #print("Negative")  
+           touchled_2.set_color(Color.RED)
+           left_motor.set_velocity(output)
+           right_motor.set_velocity(output)
+           left_motor.spin(REVERSE)
+           right_motor.spin(FORWARD)
+       # Adding the error to get error_total, which is used for calculating output
+       error = target_heading - brain_inertial.rotation()
+       abs_error = math.fabs(error)
+       error_total = error_total + abs_error
+   
+   # Once the while loop has been exited, meaning the turn is complete, we stop the motors
+   left_motor.stop()
+   right_motor.stop()
+
+   #print("End error: " + str(error))
+   #print("Ending heading turn: ", brain_inertial.rotation())
+
+
+#when_started1()
+# We calculate how long it takes for the turn to be completed
+#time1 = brain.timer.time()
+# We have tunned kp, ki, and kd to make accurate turns.
+# This code makes a 90 degree turn
+#turn_PID(100, 0.75, 0.0001, 0.0001, 90)
+#time2 = brain.timer.time()
+#print("time: " + str(time2 -time1))
+brain_inertial.calibrate()
+while brain_inertial.is_calibrating():
+   sleep(50)
+brain_inertial.set_rotation(0, DEGREES)
+left_motor.set_stopping(BRAKE)
+right_motor.set_stopping(BRAKE)
+catapult.set_velocity(100, PERCENT)
+intake.set_velocity(100, PERCENT)
+right_motor.set_timeout(4, SECONDS)
+left_motor.set_timeout(4, SECONDS)
+
+
+kp_backward = 0.4
+kp_forward = 0.45
+ki_backward = 0.001
+ki_forward = 0.001
+kd_backward = 0.001
+kd_forward = 0.001
+
+start_time = brain.timer.time(MSEC)
+drivestraitforward_PID(260, 62.5, kp_forward, ki_forward,kd_forward , 0)
+wait(500,MSEC)
+print("Forward code ended. Time taken: " + str(brain.timer.time(MSEC) -start_time))
+
+time1 = brain.timer.time(MSEC)
+turn_PID(100, 1, 0.001, 0.001, -90)
+wait(500,MSEC)
+print("Turn code ended. Time taken: " + str(brain.timer.time(MSEC) -time1))
+
+time1 = brain.timer.time(MSEC)
+moveandscore()
+print("Move and score code ended. Time taken: " + str(brain.timer.time(MSEC) -time1))
+wait(500,MSEC)
+
+time1 = brain.timer.time(MSEC)
+turn_PID(100, 1, 0.001, 0.001, -150)
+print("Turn code 2 ended. Time taken: " + str(brain.timer.time(MSEC) -time1))
+wait(500,MSEC)
+
+time1 = brain.timer.time(MSEC)
+drivestraitbackward_PID(400, -62.5, kp_backward, ki_backward, kd_backward, -150)
+print("Backward Transition 1 ended. Time taken: " + str(brain.timer.time(MSEC) -time1))
+
+print("Total time taken: " + str(brain.timer.time(MSEC) -start_time))
