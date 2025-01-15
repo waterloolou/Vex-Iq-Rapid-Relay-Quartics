@@ -1,0 +1,59 @@
+#region VEXcode Generated Robot Configuration
+from vex import *
+import urandom
+
+# Brain should be defined by default
+brain=Brain()
+
+# Robot configuration code
+brain_inertial = Inertial()
+pneumatic_4 = Pneumatic(Ports.PORT4)
+intake = Motor(Ports.PORT5, False)
+intake_outake = Motor(Ports.PORT11, False)
+
+
+
+# generating and setting random seed
+def initializeRandomSeed():
+    wait(100, MSEC)
+    xaxis = brain_inertial.acceleration(XAXIS) * 1000
+    yaxis = brain_inertial.acceleration(YAXIS) * 1000
+    zaxis = brain_inertial.acceleration(ZAXIS) * 1000
+    systemTime = brain.timer.system() * 100
+    urandom.seed(int(xaxis + yaxis + zaxis + systemTime)) 
+    
+# Initialize random seed 
+initializeRandomSeed()
+
+#endregion VEXcode Generated Robot Configuration
+
+# ------------------------------------------
+# 
+# 	Project:      VEXcode Project
+# 	Author:       VEX
+# 	Created:
+# 	Description:  VEXcode IQ Python Project
+# 
+# ------------------------------------------
+
+# Library imports
+from vex import *
+
+# Begin project code
+intake.set_velocity(100, PERCENT)
+intake.spin(FORWARD)
+pneumatic_4.pump_on()
+pneumatic_4.extend(CYLINDER1)-
+
+
+def outake:
+    pneumatic_4.retract(CYLINDER1)
+    intake_outake.spin(FORWARD)
+
+def both_motor_intake:
+    pneumatic_4.extend(CYLINDER1)
+    intake_outake.spin(FORWARD)
+    intake.spin(REVERSE)
+
+
+
